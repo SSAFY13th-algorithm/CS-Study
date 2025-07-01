@@ -444,3 +444,157 @@ ACID는 Atomicity, Consistency, Isolation, Durability로 데이터의 정합성�
 - Isolation(격리성)은 트랜잭션 간의 데이터 접근을 서로 격리하여, 서로 영향을 미치지 않도록 하는 것을 의미합니다. 
 - Durability(지속성)은 한 번 커밋된 데이터는 어떤 일이 있어도 유실되서는 안되고 지속되어야 한다는 의미입니다. 
 </details>
+
+## 격리 수준
+
+트랜잭션의 격리수준은 크게 `Read Uncommited` `Read commited` `Repeatable read` `Serializable` 으로 나뉘며 뒤로 갈수록 엄격해집니다.
+
+<details>
+    <summary><b>Read Uncommitted</b></summary>
+
+READ UNCOMMITTED는 커밋이 되지 않은 트랜젹션의 데이터 변경 내용을 다른 트랜잭션이 조회하는 것을 허용하는 격리수준입니다. read uncommitted는 같은 트랜잭션 내에서 같은 쿼리를 여러 번 실행했을 때 다른 결과가 나올 수 있어 데이터 일관성이 깨집니다. Dirty Read, Non-repeatable Read, Phantom Read 문제가 발생할 수 있습니다.
+</details>
+<br>
+<details>
+    <summary><b>Read committed</b></summary>
+
+Read committed는 커밋된 트랜잭션의 변경사항만 다른 트랜잭션에서 조회할 수 있는 격리 수준입니다. 특정 트랜잭션이 수행되는 동안 다른 트랜잭션은 현재 커밋된 데이터 스냅샷을 읽습니다. Dirty Read는 해결했지만, Non-repeatable Read와 Phantom Read는 발생할 수 있습니다.
+</details>
+<br>
+<details>
+    <summary><b>Repeatable read</b></summary>
+
+한 트랜잭션이 특정 레코드를 조회할 때 하나의 행에서 정보를 가져올 때 동일한 응답임을 보장합니다.
+
+- `Repeatable Read`에서는 한 트랜잭션이 동일한 행(row)을 반복 조회할 때 항상 같은 결과를 보장하여 Non-Repeatable Read를 방지합니다.
+- 하지만, 일반적으로 동일한 조건으로 조회하는 결과 집합 전체에 대한 일관성은 보장하지 않으므로 Phantom Read는 방지하지 못합니다.
+- 그러나 MySQL의 InnoDB 스토리지 엔진은 MVCC 기반의 Undo 로그를 활용하여 트랜잭션 시작 시점의 스냅샷을 기준으로 조회하기 때문에, 실질적으로 Phantom Read까지 방지됩니다.
+</details>
+<br>
+<details>
+    <summary><b>Serializable</b></summary>
+
+완전히 트랜잭션을 사용하는 테이블이라면, 다른 트랜잭션이 접근할 수 없도록 만드는 것입니다.
+
+- 이를 통해서 모든 문제점들을 해결할 수 있습니다.
+- 참고
+
+참고로 mysql의 기본 격리 수준은 아래와 같이 Repeatable-read입니다.
+![](/Computer%20Science/Database/image/repeatable-read%20result.png)
+</details>
+
+<br>
+
+## 낮은 격리 수준시 발생하는 현상
+
+<details>
+    <summary><b>더티 리드 `Dirty Read`</b></summary>
+
+한 트랜잭션이 아직 커밋되지 않은 다른 트랜잭션의 변경사항을 읽는 현상입니다. 커밋되지 않은 데이터는 나중에 롤백 될 수 있습니다. 롤백된 경우 잘못된 데이터를 기반으로 한 연산이 발생하기 때문에 문제가 됩니다.
+</details>
+<br>
+<details>
+    <summary><b>반복 불가능한 읽기 `Non-repeatable Read`</b></summary>
+
+한 트랜잭션 내에서 같은 쿼리를 두 번 실행했을 때 다른 결과가 나오는 현상입니다. 두 쿼리가 실행되는 중간에 다른 트랜잭션이 데이터를 수정한 경우 발생됩니다.
+</details>
+<br>
+<details>
+    <summary><b>팬텀 리드 `Phantom Read`</b></summary>
+
+한 트랜잭션 내에서 같은 쿼리를 두 번 실행했을 때, 첫 번째 쿼리와 두 번째 쿼리의 결과 행 수가 달라진 경우입니다.
+</details>
+<br>
+<details>
+    <summary><b>갱신 손실 `Lost Update`</b></summary>
+
+서로 다른 트랜잭션이 같은 데이터를 동시에 업데이트할 때, 한 트랜잭션의 변경사항이 다른 트랜잭션에 의해 덮어쓰여지는 현상입니다.
+</details>
+<br>
+<details>
+    <summary><b>트랜잭션 병행 제어기법 대표적인 두 가지</b></summary>
+
+1. 락킹(Locking) : 트랜잭션이 데이터에 접근할 때 동시에 접근하지 못하도록 락을 설정하고,
+   트랜잭션은 Lock을 획득한 뒤에만 연산 가능합니다
+    - 2단계 락킹 프로토콜
+        - 확장 단계 : Lock만 수행 가능하고, 더이상 Unlock은 수행 불가합니다.
+        - 축소 단계 : Unlock만 수행 가능하고, 더 이상 Lock은 수행 불가합니다.
+
+      이렇게 단계를 나누어 프로토콜을 정한 이유 는 직렬 가능성 (serializablity) 확보를 위함입니다.
+
+    1. S-Locking (공유잠금)
+        - 공유잠금을 설정한 트랜잭션은 데이터 항목에 대해 읽기 연산만 가능합니다.
+        - 하나의 데이터 항목에 대해 여러 개의 공유잠금이 가능합니다.
+        - 다른 트랜잭션도 읽기 연산만을 실행 할 수 있습니다.
+    2. X-Locking (배타잠금)
+        - 배타잠금을 설정한 트랜잭션은 데이터 항목에 대해 읽기 연산(read)과 쓰기 연산(write) 모두 가능합니다.
+        - 하나의 데이터 항목에 대해서 하나의 배타잠금만 가능합니다.
+        - 다른 트랜잭션은 읽기연산과 쓰기연산 둘 다 불가능합니다.
+2. 타임스탬프 : 각 트랜잭션에 고유한 타임스탬프를 부여해서 시간 순서대로 연산을 수행하도록 제어하는 방식입니다.
+    - 각 데이터에 읽은 시간, 쓴 시간이 저장되어 있습니다.
+    - 데이터를 읽거나 쓸 때 자신보다 미래시간에 접근된 기록이 있다면 충돌로 간주하고 롤백합니다.
+    - 장단점
+        - 장점 : 교착상태(deadlock)가 발생하지 않습니다.
+        - 단점 : 복귀가 반복되어 성능이 저하될 수 있습니다.
+</details>
+<br>
+
+## Mysql에서 Undo 로그와 Redo로그
+<details>
+    <summary><b>undo,redo</b></summary>
+
+- Redo로그는 변경 쿼리(update,insert,Delete)연산을 수행한 후에 저장되고, Undo 로그는 변경 쿼리연산의 수행 전에 저장됩니다.
+- Undo로그는 변경 쿼리 연산 수행전에 저장해서, 해당 연산에서 예외가 발생 시 롤백 될때 참고하는 용으로 저장되고, Redo의 경우  커밋되었으나, 버퍼에만 반영되고, 아직 디스크에 변경이 되지 않았는데, 장애가 일어났을 때 복구를 위해서 사용합니다.
+- Mysql은 성능을 위해서 매번 디스크에 접근하는게 아닌 특정 시점에서만 디스크에 저장하기에  redo 로그가 필요합니다.
+</details>
+
+<details>
+    <summary><b>코드</b></summary>
+
+```
+-- 트랜잭션 A 시작 (트랜잭션 ID = 100)
+START TRANSACTION;
+
+SELECT * FROM user WHERE id = 1;
+-- user(id=1)의 버전 1 (트랜잭션 90에서 커밋한 값)을 읽음
+
+-- 트랜잭션 B가 user(id=1)를 업데이트하고 커밋 (트랜잭션 ID = 101)
+UPDATE user SET name = 'Bob' WHERE id = 1;
+COMMIT;
+
+-- 트랜잭션 A에서 다시 같은 SELECT 실행
+SELECT * FROM user WHERE id = 1;
+-- 여전히 버전 1을 읽음. 왜?
+-- InnoDB는 Undo 로그를 따라가서 트랜잭션 100보다 이전에 커밋된 버전(트랜잭션 90)을 찾기 때문.
+
+```
+- MVCC는 읽기 일관성을 유지하기 위해, 트랜잭션 시점에 따라 필요한 레코드의 undo 로그를 따라가며
+과거 버전을 조회합니다.
+</details>
+
+## @Transactional(readOnly = true)
+<details>
+    <summary><b>readonly의 이점</b></summary>
+
+- 기본적으로 일반 @Transactional의 경우 Dirty check를 통해서persistcontext에서 엔티티가 변경되었는지를 확인하는데 이 로직을  생략하기에 성능상 이점을 가지고 있습니다.
+- 또한 플러시도 되지 않기때문에 성능상 이점을 가지게 됩니다. (디스크에 접근을 줄이므로)
+</details>
+
+## 트랜잭션의 단위
+<details>
+    <summary><b>메서드 단위</b></summary>
+
+기본적으로 하나의 트랜잭션은 하나의 서비스 로직 즉 메서드 단위로 묶는게 일반적입니다.
+이는 트랜잭션의 범위를 명확히 하여 데이터 정합성을 보장하고, 예외 발생 시 일관된 롤백 처리를 가능하게 하기 위함입니다.
+</details>
+
+## 자바,스프링 환경에서 트랜잭션을 처리할 때 주의 해야 할 점
+<details>
+    <summary><b>프록시 형태의 @Transactional</b></summary>
+
+- A) 대표적으로 private메서드에서 @Transactional이 적용되지 않는 것이 있습니다.
+- Spring AOP는 기본적으로 public, protected메서드에서만 적용됩니다.
+    - 프록시 객체에서 실제 객체를 호출해야 하기 때문입니다.
+- 또한 같은 내부 클래스에서 호출하는 경우 @Transactional은 적용이 되지 않으므로 주의가 필요합니다.
+    - 프록시 객체가 아닌 내부 클래스에서 this를 통해서 직접 호출하기 때문입니다.
+</details>
